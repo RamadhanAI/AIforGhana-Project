@@ -1,0 +1,6 @@
+[submodule "aiforghana-helpdesk"]
+	path = aiforghana-helpdesk
+	url = https://github.com/your-backend-repo-url
+[submodule "aiforghana-next"]
+	path = aiforghana-next
+	url = https://github.com/your-frontend-repo-url

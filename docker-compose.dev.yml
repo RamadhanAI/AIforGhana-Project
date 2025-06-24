@@ -1,0 +1,51 @@
+
+
+services:
+  frontend:
+    build:
+      context: ./aiforghana-next
+      dockerfile: Dockerfile.dev
+    container_name: aiforghana-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./aiforghana-next:/app   # live-reload source
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./aiforghana-helpdesk
+    container_name: aiforghana-backend
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - ./aiforghana-helpdesk:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:15
+    container_name: aiforghana-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

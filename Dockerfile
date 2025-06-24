@@ -1,25 +1,30 @@
-# ---------- build frontend ----------
+# ---------- Build Frontend ----------
 FROM node:20 AS frontend
 WORKDIR /app
 COPY aiforghana-next ./aiforghana-next
 RUN cd aiforghana-next && npm ci && npm run build
 
-# ---------- build backend ----------
+# ---------- Build Backend ----------
 FROM python:3.11-slim AS backend
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc g++ python3-dev git curl \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY aiforghana-helpdesk/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt \
+    --extra-index-url https://download.pytorch.org/whl/cpu
+
 COPY aiforghana-helpdesk/aiforghana_helpdesk_api ./aiforghana_helpdesk_api
 
-# ---------- final image ----------
+# ---------- Final Image ----------
 FROM python:3.11-slim
 WORKDIR /app
 
-# FE assets
 COPY --from=frontend /app/aiforghana-next/.next ./frontend
 COPY --from=frontend /app/aiforghana-next/public ./frontend/public
 
-# BE app + Python packages
 COPY --from=backend /app/aiforghana_helpdesk_api ./aiforghana_helpdesk_api
 COPY --from=backend /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 

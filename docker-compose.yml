@@ -1,0 +1,74 @@
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    env_file:
+      - ./aiforghana-helpdesk/.env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      POSTGRES_HOST_AUTH_METHOD: md5
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./aiforghana-helpdesk/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./aiforghana-helpdesk
+      dockerfile: Dockerfile
+    restart: on-failure
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./aiforghana-helpdesk/.env
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
+      HF_HOME: ${HF_HOME}
+      PYTHONUNBUFFERED: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./aiforghana-helpdesk/aiforghana_helpdesk_api/model:/app/aiforghana_helpdesk_api/model
+      - ./aiforghana-helpdesk/model_cache:/app/model_cache
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c '
+      if [ -z "$UVICORN_WORKERS" ]; then
+        exec python -m uvicorn aiforghana_helpdesk_api.main:app --host 0.0.0.0 --port 8000;
+      else
+        exec python -m uvicorn aiforghana_helpdesk_api.main:app --host 0.0.0.0 --port 8000 --workers $UVICORN_WORKERS;
+      fi
+      '
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./aiforghana-next
+    container_name: aiforghana-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

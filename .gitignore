@@ -36,3 +36,8 @@ coverage/
 dist/
 build/
 aiforghana-next.zip
+aiforghana-helpdesk/model_cache/
+aiforghana-helpdesk/wheelhouse/
+aiforghana_helpdesk_api/aiforghana-venv/
+aiforghana_helpdesk_api/model/
+aiforghana-next/node_modules/
